@@ -1,59 +1,80 @@
 # ThinkBank Marathi Assistant
 
-This repository contains a Google Colab Jupyter notebook that builds a Marathi-language document question-answering chatbot using local PDF transcripts and a combination of embeddings + a Gemini generative model.
+A Colab notebook that builds an interactive Marathi-language question-answering chatbot over a collection of local PDF transcripts. The notebook extracts Marathi text from PDFs, cleans and splits it into chunks, converts chunks to embeddings, stores them in a FAISS vector store, and uses a Gemini generative model to answer user queries with source citations via a Gradio chat UI.
 
 Notebook
-- Gemini2_Think_Bank (3).ipynb — main Colab notebook. It:
-  - uploads PDF files into /content/pdfs
-  - extracts Marathi text from PDFs with pdfplumber
-  - cleans and chunks text (RecursiveCharacterTextSplitter)
-  - creates embeddings using sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-  - builds a FAISS vector store
-  - queries the vector store for relevant context and calls a Gemini model to generate Marathi answers
-  - launches a Gradio chat UI for interactive queries
+- Gemini2_Think_Bank (3).ipynb — Google Colab notebook (path: `Gemini2_Think_Bank (3).ipynb`).
+
+Key features
+- Upload Marathi PDF transcripts into `/content/pdfs` (Colab session folder).
+- Extract selectable text from PDFs using pdfplumber.
+- Clean Marathi text and split into chunks (RecursiveCharacterTextSplitter).
+- Create multilingual embeddings with sentence-transformers and store them in FAISS.
+- Perform vector similarity search to retrieve context for queries.
+- Use a Gemini generative model to produce Marathi answers constrained to the retrieved context.
+- Launch an interactive Gradio chat interface that returns the answer and its source PDF(s).
 
 Quick start (recommended: run in Google Colab)
-1. Open the notebook: Gemini2_Think_Bank (3).ipynb
-2. Upload your Marathi PDF files by running the first cell (it saves files to /content/pdfs).
-3. Install dependencies (the notebook includes a pip install cell). Example:
+1. Open the notebook in Colab: https://github.com/Atharv-Telang1604/ThinkBank-Marathi-Assistant/blob/main/Gemini2_Think_Bank%20(3).ipynb
+2. Run the first cell and upload your Marathi PDF files when prompted — uploaded files are saved to `/content/pdfs`.
+3. Install dependencies (the notebook includes a cell to install them):
 
-   !pip install -q -U google-genai pdfplumber gradio langchain-text-splitters langchain-community faiss-cpu sentence-transformers google-generativeai
+```bash
+!pip install -q -U google-genai pdfplumber gradio langchain-text-splitters langchain-community faiss-cpu sentence-transformers google-generativeai
+```
 
-4. Set credentials:
-   - Replace MY_API_KEY in the notebook with your Google Generative AI (Gemini) API key.
-   - (Optional) For faster Hugging Face model downloads and higher rate limits, add a `HF_TOKEN` in Colab secrets.
+4. Set credentials in the notebook:
+- Replace the placeholder value of `MY_API_KEY` with your Google Generative AI (Gemini) API key.
+- (Optional) Set a `HF_TOKEN` in Colab secrets for authenticated Hugging Face downloads and higher rate limits.
 
-5. Run the cells in order, or press the Gradio "🔄 डेटा लोड / रिफ्रेश करा (Refresh Dataset)" button in the UI to ingest PDFs and construct the vector DB.
-6. Ask questions in Marathi using the Gradio chat interface. The app returns an answer and lists the source PDF(s) used.
+5. Run the cells in order, or use the Gradio UI:
+- Click the "🔄 डेटा लोड / रिफ्रेश करा (Refresh Dataset)" button to ingest PDFs and build the FAISS vector store.
+- Use the Gradio chat to ask questions in Marathi. Each answer will include the source PDF(s) used.
 
-Important notes
-- The notebook currently uses the `gemini-2.5-flash-lite` model via the `google.generativeai` / `google-genai` libraries. You must provide a valid Gemini API key in the `MY_API_KEY` variable before generating responses.
-- The notebook prints warnings about `google.generativeai` being deprecated. Consider switching to `google.genai` if you update packages and APIs.
-- The notebook uses the sentence-transformers model `paraphrase-multilingual-MiniLM-L12-v2` for embeddings; the notebook warns about unauthenticated HF usage. If you plan to process many or large files, set HF_TOKEN.
-- Gradio will expose a temporary share URL when running in Colab (expires in one week). For permanent hosting, deploy to Hugging Face Spaces or another hosting platform.
+Configuration
+- MODEL_NAME — Gemini model used (default in the notebook: `gemini-2.5-flash-lite`).
+- DATASET_FOLDER — path for input PDFs (default: `/content/pdfs`).
+- Embedding model — currently `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`.
 
-Files saved by the notebook
-- /content/pdfs — where uploaded PDFs are stored during a Colab session.
+Architecture overview
+1. PDF upload → saved to /content/pdfs.
+2. Text extraction with pdfplumber → cleaned by `clean_marathi_text()`.
+3. Chunking with RecursiveCharacterTextSplitter.
+4. Embeddings created with a sentence-transformers model.
+5. FAISS vector store built from embeddings.
+6. On query: retrieve top-K similar chunks → construct context → call Gemini to generate answer constrained to that context → return answer + source list.
 
-Configuration options you may want to change
-- MODEL_NAME — the Gemini model to call (currently `gemini-2.5-flash-lite`).
-- MY_API_KEY — set to your Gemini API key.
-- DATASET_FOLDER — path for PDFs (default `/content/pdfs`).
-- Embedding model — currently a sentence-transformers multilingual MiniLM model.
+Important notes & recommendations
+- google.generativeai deprecation: The notebook uses the `google.generativeai` / `google-genai` packages. The `google.generativeai` package may be deprecated in some environments; consider migrating to `google.genai` if you update the libraries or encounter warnings.
+- Hugging Face authentication: Without a `HF_TOKEN`, downloads and requests are unauthenticated and may be rate-limited. Set `HF_TOKEN` in Colab secrets if you process many files or need faster downloads.
+- Scanned PDFs / OCR: pdfplumber extracts selectable text. If your PDFs are scanned images, add an OCR step (e.g., Tesseract) before ingestion.
+- Persistent storage: FAISS in the notebook is in-memory. If you need persistence between sessions, save the vector store to disk or to a cloud bucket and add load/save code.
+- Gradio sharing: When running in Colab, Gradio may expose a temporary public link (expires in ~1 week). Do not upload sensitive documents if you enable sharing.
 
 Troubleshooting
-- If you see rate-limit or authentication warnings from Hugging Face, set HF_TOKEN in Colab secrets.
-- If generation calls fail (e.g., 503), check network connectivity and that your Gemini API key is correct and has usage/quota.
-- If no answers are found, ensure PDFs contain extractable selectable text (pdfplumber may not extract text reliably from scanned images without OCR).
+- Empty results / no answer: confirm uploaded PDFs contain extractable text (not only scanned images), and that `ingest_directory()` completed successfully.
+- HF model warnings / failures: set `HF_TOKEN` or try re-running the cell if model downloads fail.
+- Gemini API errors (e.g. 503): verify your `MY_API_KEY`, check quota/region availability, and retry after a short delay.
 
-Privacy and data
-- Uploaded PDFs are saved only to the Colab VM (under /content). If you share a Gradio public link the data could be accessible to anyone with the link while the session is running. Do not upload sensitive documents without ensuring appropriate controls.
+Security & privacy
+- Uploaded files are stored only in the Colab VM under `/content` for the active session unless you explicitly save them elsewhere.
+- If you publish or share the Gradio link, anyone with the link can access the running UI and its data while the session runs. Remove sensitive files or run locally behind private networking for sensitive data.
+
+Suggested next improvements
+- Add OCR (Tesseract or Google Vision) to support scanned PDFs.
+- Persist the FAISS index to disk or cloud to avoid rebuilding every session.
+- Replace deprecated package usage (`google.generativeai`) with `google.genai` and update the generation calls as needed.
+- Optionally switch to a hosted embeddings service or a managed vector DB for scale.
 
 License
-- Add a license if you want to publish this project. (No license is included by default.)
+- No license is included by default. Add a LICENSE file (MIT, Apache-2.0, etc.) if you plan to publish or share this repository.
 
-Contact / next steps
-- To improve results, consider adding OCR (Tesseract) for scanned PDFs, choosing a higher-capacity embedding model, or storing the vector DB persistently instead of only in-memory FAISS.
+Contact / Support
+- If you want, I can:
+  - Translate this README to Marathi.
+  - Add a LICENSE (choose MIT, Apache-2.0, GPL-3.0, or tell me which license you prefer).
+  - Generate a requirements.txt / environment.yml.
+  - Add example code to persist the FAISS index or add OCR steps.
 
 ---
-*Generated README for the uploaded notebook by GitHub Copilot.*
+README updated to be clearer and more professional. If you'd like wording changes, additional sections, or Marathi translation, tell me which and I'll update the file.
